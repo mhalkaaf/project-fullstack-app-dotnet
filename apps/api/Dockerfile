@@ -1,14 +1,19 @@
-FROM node:22.15.0-alpine AS dependencies
-WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
+WORKDIR /src
+COPY Directory.Build.props Directory.Packages.props ./
+COPY apps/shared/OrderFlow.Shared.csproj apps/shared/
+COPY apps/api/OrderFlow.Api.csproj apps/api/
+RUN dotnet restore apps/api/OrderFlow.Api.csproj
+COPY apps/shared/ apps/shared/
+COPY apps/api/ apps/api/
+RUN dotnet publish apps/api/OrderFlow.Api.csproj -c Release -o /app --no-restore /p:UseAppHost=false
 
-FROM node:22.15.0-alpine
-ENV NODE_ENV=production
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine
 WORKDIR /app
-COPY --from=dependencies /app/node_modules ./node_modules
-COPY package.json package-lock.json ./
-COPY src ./src
-USER node
+RUN apk add --no-cache krb5-libs
+ENV ASPNETCORE_HTTP_PORTS=3000 \
+    DOTNET_EnableDiagnostics=1
+COPY --from=build /app ./
+USER $APP_UID
 EXPOSE 3000
-CMD ["npm", "start"]
+ENTRYPOINT ["dotnet", "OrderFlow.Api.dll"]

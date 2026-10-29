@@ -5,7 +5,7 @@ OrderFlow is a small, event-driven order-processing application for learning ful
 ## What is included
 
 - Static frontend served by Nginx
-- Node.js API and background worker
+- .NET 10 ASP.NET Core API and background worker
 - PostgreSQL schema and seed products
 - Kafka running in single-node KRaft mode
 - Transactional outbox and idempotent consumer foundations
@@ -61,9 +61,10 @@ make down
 
 ```text
 apps/
-  api/                 HTTP API and outbox publisher
+  api/                 .NET 10 HTTP API
   frontend/            Browser UI and Nginx configuration
-  worker/              Kafka consumer and order workflow
+  shared/              Shared telemetry, Kafka, and outbox infrastructure
+  worker/              .NET 10 Kafka consumer and order workflow
 database/              PostgreSQL initialization
 docker/kafka/          Kafka topic initialization
 docs/                  Product and engineering documentation
@@ -77,6 +78,7 @@ compose.yaml           Complete local environment
 - [Architecture and event flow](docs/architecture.md)
 - [Observability, SLI, SLO, and SLA](docs/observability.md)
 - [Development and operations guide](docs/development.md)
+- [.NET observability and messaging learning guide](docs/dotnet-learning-guide.md)
 
 This environment is deliberately educational. The single-node databases and brokers are not a production deployment topology.
 

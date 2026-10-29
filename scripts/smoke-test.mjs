@@ -1,7 +1,30 @@
+import http from 'node:http';
+
 const baseUrl = process.env.ORDERFLOW_URL ?? 'http://127.0.0.1:8088';
 
+function fetchJson(url, options = {}) {
+  return new Promise((resolve, reject) => {
+    const request = http.request(url, {
+      method: options.method ?? 'GET',
+      headers: options.headers ?? {}
+    }, (response) => {
+      let data = '';
+      response.setEncoding('utf8');
+      response.on('data', (chunk) => { data += chunk; });
+      response.on('end', () => resolve({
+        ok: response.statusCode >= 200 && response.statusCode < 300,
+        status: response.statusCode,
+        json: async () => JSON.parse(data || '{}')
+      }));
+    });
+    request.on('error', reject);
+    if (options.body) request.write(options.body);
+    request.end();
+  });
+}
+
 async function request(path, options) {
-  const response = await fetch(`${baseUrl}${path}`, options);
+  const response = await fetchJson(`${baseUrl}${path}`, options);
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(`${path} returned ${response.status}: ${JSON.stringify(body)}`);
   return body;

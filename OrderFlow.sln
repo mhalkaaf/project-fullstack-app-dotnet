@@ -1,0 +1,31 @@
+
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OrderFlow.Shared", "apps\shared\OrderFlow.Shared.csproj", "{1E88E6ED-B49A-4C33-B999-DFEE640AF908}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OrderFlow.Api", "apps\api\OrderFlow.Api.csproj", "{1453BB62-5B57-4DF7-A9E6-D37C64B3EB7A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OrderFlow.Worker", "apps\worker\OrderFlow.Worker.csproj", "{D81254B7-C8D1-46FB-8485-15F23D3B6721}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1E88E6ED-B49A-4C33-B999-DFEE640AF908}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1E88E6ED-B49A-4C33-B999-DFEE640AF908}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1E88E6ED-B49A-4C33-B999-DFEE640AF908}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1E88E6ED-B49A-4C33-B999-DFEE640AF908}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1453BB62-5B57-4DF7-A9E6-D37C64B3EB7A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1453BB62-5B57-4DF7-A9E6-D37C64B3EB7A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1453BB62-5B57-4DF7-A9E6-D37C64B3EB7A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1453BB62-5B57-4DF7-A9E6-D37C64B3EB7A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D81254B7-C8D1-46FB-8485-15F23D3B6721}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D81254B7-C8D1-46FB-8485-15F23D3B6721}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D81254B7-C8D1-46FB-8485-15F23D3B6721}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D81254B7-C8D1-46FB-8485-15F23D3B6721}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

@@ -28,8 +28,8 @@ Prometheus + Tempo + Loki --------------------------> Grafana
 | Component | Responsibility |
 |---|---|
 | Frontend | Catalog, order submission, timeline polling, API reverse proxy |
-| API | Validation, queries, transactional order creation, outbox publishing |
-| Worker | Kafka consumption, inventory/payment workflow, idempotency |
+| API (.NET 10) | ASP.NET Core validation/queries, transactional order creation, outbox publishing |
+| Worker (.NET 10) | `BackgroundService` Kafka consumption, inventory/payment workflow, idempotency |
 | PostgreSQL | Source of truth and transactional outbox |
 | Kafka | Durable lifecycle-event distribution |
 | OTel Collector | Receives OTLP telemetry and forwards traces |
@@ -89,9 +89,10 @@ Ordering is guaranteed only inside a partition. Using the order ID as key ensure
 The design targets at-least-once delivery:
 
 1. Database changes and an outbox row commit together.
-2. The publisher may send the same row more than once if it crashes after Kafka acknowledgement but before updating `published_at`.
-3. The worker inserts a `processed_events` claim before applying business changes in the same database transaction.
-4. A duplicate event therefore becomes a no-op.
+2. API and worker both run an outbox publisher. `FOR UPDATE SKIP LOCKED` lets multiple instances share work without normally selecting the same row.
+3. A publisher may still send the same row more than once if it crashes after Kafka acknowledgement but before committing `published_at`.
+4. The worker inserts a `processed_events` claim before applying business changes in the same database transaction.
+5. It commits the Kafka offset only after the database transaction commits. A redelivery therefore becomes a no-op.
 
 Exactly-once language should be avoided unless the entire business side effect—not only Kafka reads and writes—is covered.
 

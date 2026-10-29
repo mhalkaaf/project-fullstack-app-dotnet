@@ -32,7 +32,7 @@
       "gridPos": { "h": 5, "w": 6, "x": 12, "y": 0 },
       "id": 3,
       "options": { "colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto", "wideLayout": true },
-      "targets": [{ "expr": "orderflow_outbox_pending", "refId": "A" }],
+      "targets": [{ "expr": "max(orderflow_outbox_pending)", "refId": "A" }],
       "title": "Pending outbox events",
       "type": "stat"
     },

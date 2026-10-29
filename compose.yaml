@@ -1,11 +1,12 @@
 name: ${COMPOSE_PROJECT_NAME:-orderflow}
 
 x-app-environment: &app-environment
-  NODE_ENV: production
-  DATABASE_URL: postgresql://${POSTGRES_USER:-orderflow}:${POSTGRES_PASSWORD:-orderflow-local-only}@postgres:5432/${POSTGRES_DB:-orderflow}
+  ASPNETCORE_ENVIRONMENT: Production
+  DATABASE_URL: Host=postgres;Port=5432;Database=${POSTGRES_DB:-orderflow};Username=${POSTGRES_USER:-orderflow};Password=${POSTGRES_PASSWORD:-orderflow-local-only}
   KAFKA_BROKERS: kafka:9092
   OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
   OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+  OTEL_METRIC_EXPORT_INTERVAL: 5000
   OTEL_RESOURCE_ATTRIBUTES: deployment.environment=local
   LOG_LEVEL: ${LOG_LEVEL:-info}
 
@@ -35,7 +36,8 @@ services:
 
   api:
     build:
-      context: ./apps/api
+      context: .
+      dockerfile: apps/api/Dockerfile
     environment:
       <<: *app-environment
       PORT: 3000
@@ -61,7 +63,8 @@ services:
 
   worker:
     build:
-      context: ./apps/worker
+      context: .
+      dockerfile: apps/worker/Dockerfile
     environment:
       <<: *app-environment
       PORT: 3001

@@ -2,6 +2,10 @@
 .env
 node_modules
 **/node_modules
+**/bin
+**/obj
+.dotnet-cli
+.nuget-packages
 coverage
 dist
 *.log

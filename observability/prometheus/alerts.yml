@@ -2,7 +2,7 @@ groups:
   - name: orderflow-availability
     rules:
       - alert: OrderFlowApiDown
-        expr: up{job="orderflow-api"} == 0
+        expr: absent(target_info{exported_job="orderflow-api"})
         for: 2m
         labels:
           severity: critical
@@ -37,7 +37,7 @@ groups:
   - name: orderflow-events
     rules:
       - alert: OrderFlowOutboxBacklog
-        expr: orderflow_outbox_pending > 20
+        expr: max(orderflow_outbox_pending) > 20
         for: 5m
         labels:
           severity: warning

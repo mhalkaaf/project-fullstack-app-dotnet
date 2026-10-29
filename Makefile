@@ -1,9 +1,15 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help up down restart status logs config smoke clean
+.PHONY: help restore build up down restart status logs config smoke clean
 
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "; printf "OrderFlow commands:\n"} /^[a-zA-Z_-]+:.*## / {printf "  %-12s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+
+restore: ## Restore pinned .NET dependencies
+	dotnet restore OrderFlow.sln
+
+build: ## Compile the .NET 10 backend
+	dotnet build OrderFlow.sln -c Release --no-restore
 
 up: ## Build and start the complete stack
 	docker compose up --build -d

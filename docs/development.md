@@ -27,7 +27,25 @@ make smoke
 
 The first start can take several minutes while images are downloaded and built. Kafka topic initialization and PostgreSQL schema initialization are one-shot containers and should exit successfully.
 
-The API and worker runtime require Node.js 22.15 or newer when run outside Docker. Docker already pins a compatible version.
+The API and worker target .NET 10. Install a .NET 10 SDK to build them outside Docker; `global.json` accepts the latest installed .NET 10 feature band. Node.js is only needed for the optional JavaScript smoke-test script. Docker supplies the application runtime.
+
+## Build the .NET backend
+
+```bash
+dotnet restore OrderFlow.sln
+dotnet build OrderFlow.sln -c Release --no-restore
+```
+
+Run services directly while PostgreSQL, Kafka, and the collector are available. Set the OTLP endpoint to the collector's published HTTP port (`4328` by default):
+
+```bash
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4328
+export OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+dotnet run --project apps/api
+dotnet run --project apps/worker
+```
+
+The environment-variable contract is the same in Docker and local execution. The application defaults connect to PostgreSQL on `5438` and Kafka on `29098`; Compose injects the internal container addresses.
 
 ## Debugging commands
 
@@ -38,6 +56,8 @@ docker compose exec postgres psql -U orderflow -d orderflow
 docker compose exec kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list
 docker compose exec kafka /opt/kafka/bin/kafka-consumer-groups.sh \
   --bootstrap-server kafka:9092 --group orderflow-worker --describe
+dotnet-counters monitor --name OrderFlow.Api
+dotnet-trace collect --name OrderFlow.Worker
 ```
 
 ## Resetting local data

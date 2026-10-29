@@ -19,6 +19,11 @@ exporters:
     endpoint: tempo:4317
     tls:
       insecure: true
+  prometheus:
+    endpoint: 0.0.0.0:9464
+    metric_expiration: 1m
+    resource_to_telemetry_conversion:
+      enabled: true
   debug:
     verbosity: basic
 
@@ -36,3 +41,7 @@ service:
       receivers: [otlp]
       processors: [memory_limiter, batch]
       exporters: [otlp/tempo, debug]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [prometheus]

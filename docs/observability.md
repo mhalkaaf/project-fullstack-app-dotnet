@@ -8,7 +8,7 @@ OrderFlow uses the three complementary telemetry signals:
 - Traces show where time or failure occurred across request and event boundaries.
 - Logs explain discrete events with structured diagnostic context.
 
-OpenTelemetry resource attributes include `service.name`, `service.version`, and `deployment.environment`. Application logs include `service`, `orderId`, `eventId`, and `traceId` when available.
+OpenTelemetry resource attributes include `service.name` and `deployment.environment`. `ILogger` writes JSON records containing structured fields and the active `TraceId`/`SpanId` when available.
 
 ## Metrics
 
@@ -25,13 +25,13 @@ Application metrics:
 | `orderflow_outbox_pending` | gauge | Unpublished database events |
 | `orderflow_dead_letter_total` | counter | Poison/exhausted messages |
 
-Runtime/process metrics are provided by the Prometheus client. PostgreSQL, Kafka, and host/container exporters can be added as the next exercise.
+.NET runtime and ASP.NET Core metrics plus the application `System.Diagnostics.Metrics` instruments are exported over OTLP. The collector translates them into a Prometheus scrape endpoint. PostgreSQL, Kafka, and host/container exporters can be added as the next exercise.
 
 Never label metrics with order IDs, event IDs, trace IDs, customer names, or exception messages. Those belong in traces and logs.
 
 ## Tracing
 
-The API and worker export OTLP traces to the collector. Instrumentation covers HTTP, PostgreSQL, and supported runtime operations. Kafka trace context is injected into message headers and extracted by consumers so asynchronous spans belong to the originating order trace.
+The API and worker export OTLP traces to the collector. Instrumentation covers ASP.NET Core and Npgsql. Custom `ActivitySource` producer/consumer spans inject W3C `traceparent` into Kafka headers and extract it at the worker so asynchronous spans belong to the originating order trace.
 
 Useful trace searches:
 

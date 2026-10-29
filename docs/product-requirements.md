@@ -93,7 +93,8 @@ Every transition creates an immutable `order_events` record. The mutable `orders
 | `GET` | `/api/orders/{id}` | Return an order and timeline |
 | `GET` | `/health/live` | Process liveness |
 | `GET` | `/health/ready` | PostgreSQL and Kafka readiness |
-| `GET` | `/metrics` | Prometheus application metrics |
+
+The API and worker export application/runtime metrics to the OpenTelemetry Collector over OTLP; Prometheus scrapes the collector's translated endpoint.
 
 Future operator endpoints:
 
