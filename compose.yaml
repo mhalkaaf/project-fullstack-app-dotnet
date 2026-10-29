@@ -20,13 +20,16 @@ services:
   frontend:
     build:
       context: ./apps/frontend
+    environment:
+      API_INTERNAL_URL: http://api:3000
+      NEXT_TELEMETRY_DISABLED: 1
     ports:
-      - "127.0.0.1:${FRONTEND_PORT:-8088}:8080"
+      - "127.0.0.1:${FRONTEND_PORT:-8088}:3000"
     depends_on:
       api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]
       interval: 10s
       timeout: 3s
       retries: 5

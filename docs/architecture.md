@@ -6,7 +6,7 @@
 Customer browser
       |
       v
-Nginx frontend -- /api proxy --> Order API ---> PostgreSQL
+Next.js frontend -- /api route proxy --> Order API ---> PostgreSQL
                                       |
                                       | transactional outbox publisher
                                       v
@@ -27,7 +27,7 @@ Prometheus + Tempo + Loki --------------------------> Grafana
 
 | Component | Responsibility |
 |---|---|
-| Frontend | Catalog, order submission, timeline polling, API reverse proxy |
+| Frontend (Next.js) | App Router UI, catalog/order experience, timeline polling, runtime API proxy |
 | API (.NET 10) | ASP.NET Core validation/queries, transactional order creation, outbox publishing |
 | Worker (.NET 10) | `BackgroundService` Kafka consumption, inventory/payment workflow, idempotency |
 | PostgreSQL | Source of truth and transactional outbox |

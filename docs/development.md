@@ -27,7 +27,17 @@ make smoke
 
 The first start can take several minutes while images are downloaded and built. Kafka topic initialization and PostgreSQL schema initialization are one-shot containers and should exit successfully.
 
-The API and worker target .NET 10. Install a .NET 10 SDK to build them outside Docker; `global.json` accepts the latest installed .NET 10 feature band. Node.js is only needed for the optional JavaScript smoke-test script. Docker supplies the application runtime.
+The API and worker target .NET 10. Install a .NET 10 SDK to build them outside Docker; `global.json` accepts the latest installed .NET 10 feature band. The frontend uses Next.js 16 and requires Node.js 20.9 or newer. Docker supplies both runtimes.
+
+Build or run the frontend locally:
+
+```bash
+cd apps/frontend
+npm ci
+API_INTERNAL_URL=http://127.0.0.1:3008 npm run dev
+```
+
+The production frontend image uses Next.js standalone output and proxies browser `/api/*` calls to `API_INTERNAL_URL` at runtime.
 
 ## Build the .NET backend
 
