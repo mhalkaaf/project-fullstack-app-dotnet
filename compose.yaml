@@ -1,0 +1,287 @@
+name: ${COMPOSE_PROJECT_NAME:-orderflow}
+
+x-app-environment: &app-environment
+  NODE_ENV: production
+  DATABASE_URL: postgresql://${POSTGRES_USER:-orderflow}:${POSTGRES_PASSWORD:-orderflow-local-only}@postgres:5432/${POSTGRES_DB:-orderflow}
+  KAFKA_BROKERS: kafka:9092
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+  OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+  OTEL_RESOURCE_ATTRIBUTES: deployment.environment=local
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
+services:
+  frontend:
+    build:
+      context: ./apps/frontend
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-8088}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    logging: *default-logging
+    restart: unless-stopped
+    networks: [app, observability]
+
+  api:
+    build:
+      context: ./apps/api
+    environment:
+      <<: *app-environment
+      PORT: 3000
+      OTEL_SERVICE_NAME: orderflow-api
+    ports:
+      - "127.0.0.1:${API_PORT:-3008}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+      otel-collector:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health/ready"]
+      interval: 10s
+      timeout: 4s
+      retries: 10
+      start_period: 15s
+    logging: *default-logging
+    restart: unless-stopped
+    networks: [app, observability]
+
+  worker:
+    build:
+      context: ./apps/worker
+    environment:
+      <<: *app-environment
+      PORT: 3001
+      OTEL_SERVICE_NAME: orderflow-worker
+      KAFKA_GROUP_ID: orderflow-worker
+      PAYMENT_FAILURE_RATE: ${PAYMENT_FAILURE_RATE:-0.10}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+      otel-collector:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/health/ready"]
+      interval: 10s
+      timeout: 4s
+      retries: 10
+      start_period: 15s
+    logging: *default-logging
+    restart: unless-stopped
+    networks: [app, observability]
+
+  postgres:
+    image: postgres:17.4-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-orderflow}
+      POSTGRES_USER: ${POSTGRES_USER:-orderflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-orderflow-local-only}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5438}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-orderflow} -d ${POSTGRES_DB:-orderflow}"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    logging: *default-logging
+    restart: unless-stopped
+    networks: [app]
+
+  kafka:
+    image: apache/kafka:4.0.0
+    environment:
+      CLUSTER_ID: ${KAFKA_CLUSTER_ID:-MkU3OEVBNTcwNTJENDM2Qk}
+      KAFKA_NODE_ID: ${KAFKA_BROKER_ID:-1}
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: CONTROLLER://:9093,PLAINTEXT://:9092,EXTERNAL://:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:29092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: ${KAFKA_BROKER_ID:-1}@kafka:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+    ports:
+      - "127.0.0.1:${KAFKA_PORT:-29098}:29092"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    logging: *default-logging
+    restart: unless-stopped
+    networks: [app]
+
+  kafka-init:
+    image: apache/kafka:4.0.0
+    entrypoint: ["/bin/bash", "/create-topics.sh"]
+    volumes:
+      - ./docker/kafka/create-topics.sh:/create-topics.sh:ro
+    depends_on:
+      kafka:
+        condition: service_healthy
+    logging: *default-logging
+    restart: "no"
+    networks: [app]
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:v0.7.2
+    environment:
+      KAFKA_CLUSTERS_0_NAME: orderflow-local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+    ports:
+      - "127.0.0.1:${KAFKA_UI_PORT:-8089}:8080"
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+    logging: *default-logging
+    restart: unless-stopped
+    networks: [app]
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.123.0
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./observability/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "127.0.0.1:${OTEL_GRPC_PORT:-4327}:4317"
+      - "127.0.0.1:${OTEL_HTTP_PORT:-4328}:4318"
+    depends_on:
+      tempo:
+        condition: service_started
+    logging: *default-logging
+    restart: unless-stopped
+    networks: [observability]
+
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+      - --web.enable-lifecycle
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "127.0.0.1:${PROMETHEUS_PORT:-9098}:9090"
+    depends_on:
+      api:
+        condition: service_healthy
+      worker:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9090/-/healthy"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    logging: *default-logging
+    restart: unless-stopped
+    networks: [observability]
+
+  tempo:
+    image: grafana/tempo:2.7.2
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./observability/tempo/tempo.yaml:/etc/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    logging: *default-logging
+    restart: unless-stopped
+    networks: [observability]
+
+  loki:
+    image: grafana/loki:3.4.2
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    volumes:
+      - ./observability/loki/loki.yaml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3100/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    logging: *default-logging
+    restart: unless-stopped
+    networks: [observability]
+
+  alloy:
+    image: grafana/alloy:v1.8.2
+    command: ["run", "/etc/alloy/config.alloy", "--storage.path=/var/lib/alloy/data"]
+    volumes:
+      - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy-data:/var/lib/alloy/data
+    depends_on:
+      loki:
+        condition: service_healthy
+    logging: *default-logging
+    restart: unless-stopped
+    networks: [observability]
+
+  grafana:
+    image: grafana/grafana:11.6.0
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-3009}:3000"
+    depends_on:
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
+      tempo:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    logging: *default-logging
+    restart: unless-stopped
+    networks: [observability]
+
+networks:
+  app:
+  observability:
+
+volumes:
+  postgres-data:
+  kafka-data:
+  prometheus-data:
+  tempo-data:
+  loki-data:
+  alloy-data:
+  grafana-data:

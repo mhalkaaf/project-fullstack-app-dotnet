@@ -1,0 +1,52 @@
+groups:
+  - name: orderflow-availability
+    rules:
+      - alert: OrderFlowApiDown
+        expr: up{job="orderflow-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: OrderFlow API is unavailable
+          description: Prometheus has been unable to scrape the API for two minutes.
+
+      - alert: OrderFlowHighServerErrorRatio
+        expr: |
+          sum(rate(orderflow_http_requests_total{status_code=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(orderflow_http_requests_total{status_code!~"4.."}[5m])), 0.001)
+          > 0.01
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: OrderFlow server-error ratio is above 1%
+
+      - alert: OrderFlowApiLatencyHigh
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (rate(orderflow_http_request_duration_seconds_bucket{route="POST /api/orders"}[5m]))
+          ) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Order creation p95 latency is above 500 ms
+
+  - name: orderflow-events
+    rules:
+      - alert: OrderFlowOutboxBacklog
+        expr: orderflow_outbox_pending > 20
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: OrderFlow has more than 20 unpublished events
+
+      - alert: OrderFlowDeadLetterDetected
+        expr: increase(orderflow_dead_letter_total[5m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: An OrderFlow event was dead-lettered
